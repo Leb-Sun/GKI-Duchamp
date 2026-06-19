@@ -102,6 +102,23 @@ CONFIG_IP6_NF_MATCH_HL=y
 # BBG (baseband-guard)
 CONFIG_BBG=y
 EOF
+
+echo "⚙️ Adding ntsync + droidspaces support"
+cat >> $DEFCONFIG <<EOF
+# Droidspaces - Mandatory (kABI patch applied)
+CONFIG_SYSVIPC=y
+CONFIG_POSIX_MQUEUE=y
+CONFIG_IPC_NS=y
+CONFIG_PID_NS=y
+CONFIG_DEVTMPFS=y
+# Droidspaces - UFW optional
+CONFIG_NETFILTER_XT_TARGET_REJECT=y
+CONFIG_NETFILTER_XT_TARGET_LOG=y
+CONFIG_NETFILTER_XT_MATCH_RECENT=y
+# ntsync
+CONFIG_NTSYNC=y
+EOF
+
 if [ "$KSU_COMPAT" != "true" ]; then
   echo "🔧 Disable useless debugging configs for performance and resources"
   cat >> $DEFCONFIG <<EOF
