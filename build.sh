@@ -20,7 +20,7 @@ RELEASE="$(date +v%y.%m.%d)${RUN_NUM}"
 
 mkdir -p $RELEASE_DIR
 
-GKI_RELEASES_REPO="https://github.com/ahmed-alnassif/GKI-Duchamp"
+GKI_RELEASES_REPO="https://github.com/Leb-Sun/GKI-Duchamp"
 AK3_ZIP_NAME="$KERNEL_NAME-REL-KVER-VARIANT-BUILD_DATE.zip"
 OUTDIR="$WORKDIR/out"
 KSRC="$WORKDIR/ksrc"
@@ -74,11 +74,7 @@ SUSFS_PATCH="gki-android14-6.1"
 log "Changelog of repos"
 gh api "repos/ahmed-alnassif/android_kernel_common-6.1/commits?sha=${KERNEL_BRANCH}&per_page=10" --jq '.[] | "- [" + .sha[0:7] + "](" + .html_url + ") " + (.commit.message | split("\n")[0])'\
 > "$RELEASE_DIR/android_kernel-6.1_changelog.txt"
-gh api 'repos/tiann/KernelSU/commits?sha=main&per_page=10' --jq '.[] | "- [" + .sha[0:7] + "](" + .html_url + ") " + (.commit.message | split("\n")[0])'\
-> "$RELEASE_DIR/ksu_changelog.txt"
-gh api 'repos/SukiSU-Ultra/SukiSU-Ultra/commits?sha=builtin&per_page=10' --jq '.[] | "- [" + .sha[0:7] + "](" + .html_url + ") " + (.commit.message | split("\n")[0])'\
-> "$RELEASE_DIR/sukisu_changelog.txt"
-gh api 'repos/pershoot/KernelSU-Next/commits?sha=dev-susfs&per_page=10' --jq '.[] | "- [" + .sha[0:7] + "](" + .html_url + ") " + (.commit.message | split("\n")[0])'\
+gh api 'repos/KernelSU-Next/KernelSU-Next/commits?sha=v3.2.0&per_page=10' --jq '.[] | "- [" + .sha[0:7] + "](" + .html_url + ") " + (.commit.message | split("\n")[0])'\
 > "$RELEASE_DIR/ksun_changelog.txt"
 
 # Download Clang
@@ -284,6 +280,9 @@ fi
 if [ "$KSU_COMPAT" = "true" ]; then
   VARIANT="Compat+${VARIANT}"
 fi
+
+# This fork builds ntsync + droidspaces into every variant — tag the zip/banner so it's visible.
+VARIANT+="+NTSync-Droidspaces"
 
 # Replace Placeholder in zip name
 AK3_ZIP_NAME=${AK3_ZIP_NAME//KVER/$LINUX_VERSION}
