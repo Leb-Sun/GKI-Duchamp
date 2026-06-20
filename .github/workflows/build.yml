@@ -42,30 +42,8 @@ on:
           - "no"
           - "yes"
 
-      BUILD_VANILLA:
-        description: "Build Vanilla (no KSU)"
-        type: boolean
-        default: true
-
-      BUILD_KSU:
-        description: "Build with KernelSU"
-        type: boolean
-        default: true
-
-      BUILD_KSUN:
-        description: "Build with KernelSU-Next"
-        type: boolean
-        default: true
-
-      BUILD_SKSU:
-        description: "Build with SukiSU-Ultra"
-        type: boolean
-        default: true
-
-      BUILD_KSU_SUSFS:
-        description: "Build with KernelSU and its forks (SukiSU Ultra, KernelSU Next) + SUSFS"
-        type: boolean
-        default: true
+permissions:
+  contents: write
 
 env:
   MAN_DISABLE: true
@@ -79,39 +57,12 @@ jobs:
     steps:
       - id: set-matrix
         run: |
-          # Build JSON array manually
-          ENTRIES=""
-
-          if [[ "${{ github.event.inputs.BUILD_VANILLA }}" == "true" ]]; then
-            ENTRIES="${ENTRIES}{\"name\":\"Vanilla\",\"KSU\":\"no\",\"KSU_COMPAT\":\"false\",\"KSU_SUSFS\":\"false\"},"
-          fi
-
-          if [[ "${{ github.event.inputs.BUILD_KSU }}" == "true" ]]; then
-            ENTRIES="${ENTRIES}{\"name\":\"KSU\",\"KSU\":\"KSU\",\"KSU_COMPAT\":\"false\",\"KSU_SUSFS\":\"false\"},"
-          fi
-
-          if [[ "${{ github.event.inputs.BUILD_KSUN }}" == "true" ]]; then
-            ENTRIES="${ENTRIES}{\"name\":\"KSUN\",\"KSU\":\"KSUN\",\"KSU_COMPAT\":\"false\",\"KSU_SUSFS\":\"false\"},"
-          fi
-
-          if [[ "${{ github.event.inputs.BUILD_SKSU }}" == "true" ]]; then
-            ENTRIES="${ENTRIES}{\"name\":\"SKSU\",\"KSU\":\"SKSU\",\"KSU_COMPAT\":\"false\",\"KSU_SUSFS\":\"false\"},"
-          fi
-
-          if [[ "${{ github.event.inputs.BUILD_KSU_SUSFS }}" == "true" ]]; then
-            ENTRIES="${ENTRIES}{\"name\":\"KSU+SUSFS\",\"KSU\":\"KSU\",\"KSU_COMPAT\":\"false\",\"KSU_SUSFS\":\"true\"},"
-            ENTRIES="${ENTRIES}{\"name\":\"KSUN+SUSFS\",\"KSU\":\"KSUN\",\"KSU_COMPAT\":\"false\",\"KSU_SUSFS\":\"true\"},"
-            ENTRIES="${ENTRIES}{\"name\":\"Compat+KSU+SUSFS\",\"KSU\":\"KSU\",\"KSU_COMPAT\":\"true\",\"KSU_SUSFS\":\"true\"},"
-            ENTRIES="${ENTRIES}{\"name\":\"Compat+KSUN+SUSFS\",\"KSU\":\"KSUN\",\"KSU_COMPAT\":\"true\",\"KSU_SUSFS\":\"true\"},"
-            ENTRIES="${ENTRIES}{\"name\":\"SKSU+SUSFS\",\"KSU\":\"SKSU\",\"KSU_COMPAT\":\"false\",\"KSU_SUSFS\":\"true\"},"
-            ENTRIES="${ENTRIES}{\"name\":\"RSKSU+SUSFS\",\"KSU\":\"RSKSU\",\"KSU_COMPAT\":\"false\",\"KSU_SUSFS\":\"true\"},"
-          fi
-
-          # Remove trailing comma and wrap in array
-          ENTRIES="[${ENTRIES%,}]"
-
-          # Output matrix
-          echo "matrix={\"include\":${ENTRIES}}" >> $GITHUB_OUTPUT
+          # This fork ships a single KernelSU-Next (non-SUSFS) variant.
+          # SuSFS is intentionally not built: it is incompatible with
+          # droidspaces at runtime, and pershoot's only susfs-bearing ref
+          # (dev-susfs) carries the uapi bump that breaks the stable v3.2.0
+          # manager. Other managers are not maintained on this fork.
+          echo 'matrix={"include":[{"name":"KSUN","KSU":"KSUN","KSU_COMPAT":"false","KSU_SUSFS":"false"}]}' >> $GITHUB_OUTPUT
 
   build:
     needs: prepare
@@ -255,6 +206,13 @@ jobs:
           path: release-artifacts
           merge-multiple: true
 
+      - name: Package ntsync-policy module
+        run: |
+          # ntsync needs two pieces: the kernel (driver) and this companion
+          # SELinux/Magisk module that grants app access to /dev/ntsync.
+          # Ship the module zip (root-level entries) alongside every release.
+          (cd ntsync-policy && zip -r "$GITHUB_WORKSPACE/release-artifacts/ntsync-policy.zip" . -x '.git*')
+
       - name: Generate Checksums
         run: |
           cd release-artifacts
@@ -302,7 +260,7 @@ jobs:
       - name: Prepare release body
         run: |
             # Get list of built variants
-            VARIANTS=$(ls release-artifacts/*.zip 2>/dev/null | xargs -n1 basename | sed 's/.zip//')
+            VARIANTS=$(ls release-artifacts/*.zip 2>/dev/null | grep -v 'ntsync-policy' | xargs -n1 basename | sed 's/.zip//')
             
             {
             if [ "${{ inputs.TEST }}" = "yes"  ];then
@@ -320,9 +278,6 @@ jobs:
             $(echo "$VARIANTS" | sed 's/^/  - /')
             - 🛡️ **SuSFS:** ඞ ${{ env.SUSFS_VERSION }}
             - ⚙️ **Compiler:** ${{ env.COMPILER_STRING }}
-
-            >[!Important]
-            >- Got a bootloop? Switch to a Compat variant.
 
             **Performance & Efficiency Tweaks**
             Balanced optimizations for smoother UI, better multitasking & gaming on Poco X6 Pro (and similar **6.1.xx-android14** GKI kernel devices):
@@ -370,17 +325,6 @@ jobs:
             echo "**Full Commit History:** [Browse all commits](https://github.com/ahmed-alnassif/android_kernel_common-6.1/commits/a14-6.1)"
             echo ""
             echo "---"
-            echo "**KernelSU Changelog (last 10 commits):**"
-            echo ""
-            if [ -f release-artifacts/ksu_changelog.txt ]; then
-              cat release-artifacts/ksu_changelog.txt
-            else
-              echo "*No changelog available*"
-            fi
-            echo ""
-            echo "**Full Commit History:** [Browse all commits](https://github.com/tiann/KernelSU/commits/main)"
-            echo ""
-            echo "---"
             echo "**KernelSU Next Changelog (last 10 commits):**"
             echo ""
             if [ -f release-artifacts/ksun_changelog.txt ]; then
@@ -389,18 +333,7 @@ jobs:
               echo "*No changelog available*"
             fi
             echo ""
-            echo "**Full Commit History:** [Browse all commits](https://github.com/pershoot/KernelSU-Next/commits/dev-susfs)"
-            echo ""
-            echo "---"
-            echo "**SukiSU Ultra Changelog (last 10 commits):**"
-            echo ""
-            if [ -f release-artifacts/sukisu_changelog.txt ]; then
-              cat release-artifacts/sukisu_changelog.txt
-            else
-              echo "*No changelog available*"
-            fi
-            echo ""
-            echo "**Full Commit History:** [Browse all commits](https://github.com/SukiSU-Ultra/SukiSU-Ultra/commits/builtin)"
+            echo "**Full Commit History:** [Browse all commits](https://github.com/KernelSU-Next/KernelSU-Next/commits/v3.2.0)"
             echo ""
             echo "---"
             echo "**Checksums:**"
