@@ -261,7 +261,7 @@ if [ "$KSU" = "KSUN" ]; then
   if susfs_included; then
     install_ksu "pershoot/KernelSU-Next" "dev-susfs"
   else
-    install_ksu "KernelSU-Next/KernelSU-Next" "dev"
+    install_ksu "KernelSU-Next/KernelSU-Next" "v3.2.0"
   fi
 
   if susfs_included; then
