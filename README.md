@@ -1,19 +1,29 @@
 # GKID Kernel
 
-[![Build Status](https://github.com/ahmed-alnassif/GKI-Duchamp/actions/workflows/build.yml/badge.svg)](https://github.com/ahmed-alnassif/GKI-Duchamp/actions/workflows/build.yml)
-[![Latest Release](https://img.shields.io/github/v/release/ahmed-alnassif/GKI-Duchamp?label=Latest%20Release&color=00aa00)](https://github.com/ahmed-alnassif/GKI-Duchamp/releases)
-[![Downloads](https://img.shields.io/github/downloads/ahmed-alnassif/GKI-Duchamp/total?label=Downloads&color=00aa00)](https://github.com/ahmed-alnassif/GKI-Duchamp/releases)
-[![GitHub License](https://img.shields.io/github/license/ahmed-alnassif/GKI-Duchamp?logo=gnu)](/LICENSE)
-![KernelSU](https://img.shields.io/badge/KernelSU-built--in-success)
-[![SukiSU Ultra](https://img.shields.io/badge/SukiSU--Ultra-built--in-success)](https://github.com/SukiSU-Ultra/SukiSU-Ultra)
-![Wild KSU](https://img.shields.io/badge/Wild--KSU-built--in-success)
+[![Build Status](https://github.com/Leb-Sun/GKI-Duchamp/actions/workflows/build.yml/badge.svg)](https://github.com/Leb-Sun/GKI-Duchamp/actions/workflows/build.yml)
+[![Latest Release](https://img.shields.io/github/v/release/Leb-Sun/GKI-Duchamp?label=Latest%20Release&color=00aa00&include_prereleases)](https://github.com/Leb-Sun/GKI-Duchamp/releases)
+[![Downloads](https://img.shields.io/github/downloads/Leb-Sun/GKI-Duchamp/total?label=Downloads&color=00aa00)](https://github.com/Leb-Sun/GKI-Duchamp/releases)
+[![GitHub License](https://img.shields.io/github/license/Leb-Sun/GKI-Duchamp?logo=gnu)](/LICENSE)
 ![KernelSU Next](https://img.shields.io/badge/KernelSU--Next-built--in-success)
-![Managers](https://img.shields.io/badge/Managers-multiple-success)
-[![SUSFS](https://img.shields.io/badge/SUSFS-Integrated-orange)](https://gitlab.com/simonpunk/susfs4ksu)
+![ntsync](https://img.shields.io/badge/ntsync-enabled-success)
+![Droidspaces](https://img.shields.io/badge/Droidspaces-enabled-success)
 
-A feature-rich Generic Kernel Image (GKI) kernel built for the **Poco X6 Pro (Duchamp)** and compatible with any device running a **6.1.xx-android14** GKI kernel. Designed to offer maximum flexibility, it provides multiple variants to suit your specific needs, whether you prioritize root management, system integrity, or performance.
+A Generic Kernel Image (GKI) kernel for the **Poco X6 Pro (Duchamp)** and compatible with any device running a **6.1.xx-android14** GKI kernel.
+
+> **This is a fork of [ahmed-alnassif/GKI-Duchamp](https://github.com/ahmed-alnassif/GKI-Duchamp)** that adds **ntsync** (fast Wine/Proton synchronization) and **Droidspaces** (Linux containers) on top of the upstream performance, Baseband-Guard, and root tooling. It ships a single **KernelSU-Next** variant (see [Variant & Root](#-variant--root) below).
 
 ## ✨ Key Features
+
+### 🆕 Added by this fork
+
+*   **🪟 NT synchronization (ntsync):** in-kernel NT sync primitives for Wine/Proton, from the pristine upstream driver (no security-loosening hacks).
+
+    > ⚠️ **ntsync is two pieces — flash both.** The kernel exposes `/dev/ntsync`; the **`ntsync-policy`** module (bundled in every release) labels the node and makes it app-accessible. The kernel alone will **not** grant app access.
+
+*   **📦 Droidspaces (Linux containers):** Enables `CONFIG_SYSVIPC` (via KABI padding) plus the namespace and netfilter configs Droidspaces needs, so you can run Linux containers with working SysV IPC and namespace isolation.
+
+### Inherited from upstream
+
 *   **⚡ Performance & Efficiency Tweaks:** Extensively optimized for the Poco X6 Pro (and similar 6.1.xx-android14 devices):
 
     - Timer frequency set to **300Hz** for noticeably lower input lag and snappier feel
@@ -56,11 +66,14 @@ A feature-rich Generic Kernel Image (GKI) kernel built for the **Poco X6 Pro (Du
     - Clear page aligned to 16 bytes reducing CPU time on page allocation
     - Memory prefetch optimizations for copy operations
 
-*   **🔧 Multiple Variants:** Choose the configuration that fits your needs:
-    - **Root solutions:** KernelSU, KernelSU Next, SukiSU Ultra, Wild KSU, or Vanilla (no root)
-    - **Manager flexibility:** Multiple-Manager variants let you use your preferred manager app
+### 🔧 Variant & Root
 
-*   **🛡️ SUSFS Integration:** Advanced kernel-level hiding and spoofing capabilities (available in dedicated variants)
+This fork ships a **single KernelSU-Next variant**, with the kernel-side KSU-Next **pinned to `v3.2.0`** so it matches the stable v3.2.0 **manager app** — install the [KernelSU-Next **v3.2.0**](https://github.com/KernelSU-Next/KernelSU-Next/releases/tag/v3.2.0) manager. The upstream SukiSU / ReSukiSU / KSU-classic variants are **not built here**.
+
+> 🛡️ **SuSFS is not shipped.**
+>
+> *SuSFS is not supported … If you must use SuSFS with Droidspaces, ensure that 'HIDE SUS MOUNTS FOR ALL PROCESSES' is disabled in your SuSFS4KSU settings to avoid container boot failures.*
+
 *   **🔒 Baseband Guard (BBG):** Lightweight LSM that blocks unauthorized writes to critical partitions and device nodes, protecting the baseband and boot chain from tampering
 
 ## ⭐ Support the Development
@@ -92,7 +105,11 @@ Enhance your device with these companion modules:
 *   **GKI Requirement:** Flashes on any device with a **6.1.xx-android14** kernel.  
     *(Note: Only tested on the Poco X6 Pro. Please exercise caution on other devices.)*
 
-## ⬇️ Downloads
-Find the latest builds for all variants in the [Releases](https://github.com/ahmed-alnassif/GKI-Duchamp/releases) section.
+## ⬇️ Downloads & Flashing
+Grab the latest build from the [Releases](https://github.com/Leb-Sun/GKI-Duchamp/releases) page (published as prereleases). Each release contains:
+- the **kernel** AnyKernel3 zip (`…-KernelSU-Next+NTSync-Droidspaces.zip`), and
+- the **`ntsync-policy.zip`** module (required for ntsync — see above).
 
-[![Star History Chart](https://api.star-history.com/svg?repos=ahmed-alnassif/GKI-Duchamp&type=date&legend=top-left)](https://www.star-history.com/#star-history/star-history&type=date&legend=top-left)
+**Flashing:**
+1. Flash the **kernel** zip from your recovery, then install **`ntsync-policy.zip`** as a module from your KernelSU-Next manager.
+2. Reboot. `/dev/ntsync` comes up labeled and world-accessible, with SELinux still **Enforcing**.
