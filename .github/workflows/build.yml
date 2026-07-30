@@ -86,6 +86,12 @@ on:
         type: boolean
         default: false
 
+# This fork releases to its own repo (see GKI_RELEASES_REPO in build.sh), so the
+# job token needs write access to contents. Upstream releases to itself and gets
+# it implicitly.
+permissions:
+  contents: write
+
 env:
   MAN_DISABLE: true
   DEBIAN_FRONTEND: noninteractive
