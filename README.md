@@ -1,104 +1,106 @@
-# GKID Kernel
+# GKID Kernel — personal build
 
-<p align="center">
-  <img src="docs/banner.png" alt="GKI-Duchamp Banner">
-</p>
+A Generic Kernel Image (GKI) kernel for the **Poco X6 Pro (Duchamp)**, compatible with any device
+running a **6.1.xx-android14** GKI kernel.
 
-[![Build Status](https://github.com/ahmed-alnassif/GKI-Duchamp/actions/workflows/build.yml/badge.svg)](https://github.com/ahmed-alnassif/GKI-Duchamp/actions/workflows/build.yml)
-[![Latest Release](https://img.shields.io/github/v/release/ahmed-alnassif/GKI-Duchamp?label=Latest%20Release&color=00aa00)](https://github.com/ahmed-alnassif/GKI-Duchamp/releases)
-[![Downloads](https://img.shields.io/github/downloads/ahmed-alnassif/GKI-Duchamp/total?label=Downloads&color=00aa00)](https://github.com/ahmed-alnassif/GKI-Duchamp/releases)
-[![GitHub License](https://img.shields.io/github/license/ahmed-alnassif/GKI-Duchamp?logo=gnu)](/LICENSE)
-[![KernelSU](https://img.shields.io/badge/KernelSU-built--in-success)](https://github.com/tiann/KernelSU)
-[![SukiSU Ultra](https://img.shields.io/badge/SukiSU--Ultra-built--in-success)](https://github.com/SukiSU-Ultra/SukiSU-Ultra)
-![ReSukiSU](https://img.shields.io/badge/ReSukiSU-built--in-success)
-[![KernelSU Next](https://img.shields.io/badge/KernelSU--Next-built--in-success)](https://github.com/KernelSU-Next/KernelSU-Next)
-[![Managers](https://img.shields.io/badge/Managers-multiple-success)](https://github.com/ahmed-alnassif/GKI-Duchamp/releases)
-[![SUSFS](https://img.shields.io/badge/SUSFS-Integrated-orange)](https://gitlab.com/simonpunk/susfs4ksu)
+This is a fork of [ahmed-alnassif/GKI-Duchamp](https://github.com/ahmed-alnassif/GKI-Duchamp), which is
+where all the kernel work, performance tuning and build tooling comes from. Upstream already ships
+NTSync and DroidSpaces; this fork exists because I wanted three things set up differently for my own
+device. If you don't specifically want those differences, **use upstream's builds** — they cover more
+variants and are more widely tested.
 
-A feature-rich Generic Kernel Image (GKI) kernel built for the **Poco X6 Pro (Duchamp)** and compatible with any device running a **6.1.xx-android14** GKI kernel. Designed to offer maximum flexibility, it provides multiple variants to suit your specific needs, whether you prioritize root management, system integrity, or performance.
+## What's different here
 
-## ✨ Key Features
-*   **⚡ Performance & Efficiency Tweaks:** Extensively optimized for the Poco X6 Pro (and similar 6.1.xx-android14 devices):
+### 1. NTSync: mainline driver, labelling done from userspace
 
-    - Timer frequency set to **300Hz** for noticeably lower input lag and snappier feel
+`/dev/ntsync` has to be reachable by unprivileged apps or Wine/Proton can't use it. There are two
+routes to that, and this fork takes the second one:
 
-    - **Multi-Gen LRU (MGLRU)** enabled for better multitasking and battery efficiency
+- **Upstream's route:** the WildKernels `ntsync_base.patch` includes an in-kernel step that labels the
+  node `u:object_r:gpu_device:s0` and sets mode `0666` shortly after the driver registers. Self-contained
+  — the kernel alone is enough.
+- **This fork's route:** apply the ntsync driver **as merged in mainline Linux, unmodified**, and do the
+  labelling from userspace. A companion module (`ntsync-policy`) declares its own `ntsync_device` type,
+  `chcon`s the node to it and `chmod`s `0666` on every boot.
 
-    - **Optimized memory operations** (memcpy, memcmp, memset) from ARM-optimized-routines for up to 50% faster string/memory handling
+Both give you a working `/dev/ntsync` with the same file permissions and SELinux still **Enforcing**.
+I prefer the second because it keeps the driver identical to upstream Linux (so mainline changes apply
+cleanly) and keeps the labelling expressed as SELinux policy I can read and audit separately from GPU
+access. That's a preference about where the wiring lives, not a claim that upstream's approach is
+broken — it works fine, and it has a real advantage this one doesn't (see the warning below).
 
-    - **3x faster integer square root** reducing CPU time in cpufreq calculations
+> ⚠️ **NTSync here is two pieces — flash both.** Because the labelling is deliberately *not* in the
+> kernel, **the kernel alone will not grant app access.** You need `ntsync-policy.zip`, attached to
+> every release. If `/data` is wiped or the module is removed, reinstall it.
 
-    - Optimized **zRAM** with LZ4 compression + writeback + tracking for more and faster usable RAM under heavy loads
+### 2. KernelSU-Next is pinned
 
-    - CPU governors: **schedutil + ondemand** for efficient yet responsive scaling
+Upstream tracks the KSU-Next `dev` branch. This fork pins **`v3.3.0`** so the kernel side always matches
+a known manager release — tracking `dev` once swept in a uapi change that broke root grant against the
+stable manager. **Install the matching [KernelSU-Next v3.3.0
+manager](https://github.com/KernelSU-Next/KernelSU-Next/releases/tag/v3.3.0)** (versionCode `33214`);
+the kernel and manager versions must move together.
 
-    - **mq-deadline I/O scheduler** tuned for low latency on UFS 4.0 storage
+### 3. One variant, DroidSpaces always on
 
-    - Network stack with **TCP BBRv3** + **TCP Westwood+** + **FQ** + **ECN** + **IPv6 HL support** + **TCP_NODELAY forced** for reduced latency and faster WiFi/mobile data speeds
+A single **KernelSU-Next** build with DroidSpaces compiled in — not a dispatch-time toggle here, since
+it's the whole reason I build this. Vanilla / KernelSU / SukiSU-Ultra / ReSukiSU and the Compat variants
+are **not built** in this fork; get those from upstream.
 
-    - **F2FS** filesystem tuning (reduced GC sleep to 50ms, enlarged fsync blocks, reduced congestion timeout)
+> 🛡️ **SuSFS is not shipped here.** It's incompatible with DroidSpaces at runtime — upstream's own note:
+> *"If you must use SuSFS with DroidSpaces, ensure that 'HIDE SUS MOUNTS FOR ALL PROCESSES' is disabled
+> in your SuSFS4KSU settings to avoid container boot failures."* Since DroidSpaces is always on here,
+> leaving SuSFS out avoids shipping that combination. Upstream builds SuSFS variants if you want them.
 
-    - **ext4** commit age extended to 30s for fewer disk writes
+## Everything else comes from upstream
 
-    - **IP Set** full support + **IPv6 NAT** for better tethering and VPN performance
+Unchanged from [upstream](https://github.com/ahmed-alnassif/GKI-Duchamp#-key-features) — see their
+README for the full list:
 
-    - **Filesystem Unicode fix** preventing crashes from invalid UTF-8 filenames on vfat/exfat
-
-*   **🔋 Battery & Power Optimizations:**
-    - Freeze timeout reduced from 20s to **1s** for faster deadlock detection
-    - Global wakelock timeout capped at **500ms** to prevent infinite battery drain
-    - Alarmtimer wakeup minimized using actual timer values instead of hardcoded 2s
-    - Excessive s2idle wake attempts eliminated (single wake instead of multiple)
-    - PCI PME check interval extended to reduce unnecessary wakeups
-    - VFS cache pressure reduced to **50** for better RAM utilization
-    - Cache hot buddy disabled for DynamIQ Shared Unit efficiency
-
-*   **🧠 Scheduler & CPU Optimizations:**
-    - CPU scan order adjusted for efficient idle core selection
-    - Branch prediction hints optimized in cpufreq paths
-    - File struct aligned to 8 bytes for better cache performance
-    - Clear page aligned to 16 bytes reducing CPU time on page allocation
-    - Memory prefetch optimizations for copy operations
-
-*   **🔧 Multiple Variants:** Choose the configuration that fits your needs:
-    - **Root solutions:** KernelSU, KernelSU Next, SukiSU Ultra, ReSukiSU, or Vanilla (no root)
-    - **Manager flexibility:** Multiple-Manager variants let you use your preferred manager app
-
-*   **🛡️ SUSFS Integration:** Advanced kernel-level hiding and spoofing capabilities (available in dedicated variants)
-*   **🔒 Baseband Guard (BBG):** Lightweight LSM that blocks unauthorized writes to critical partitions and device nodes, protecting the baseband and boot chain from tampering
-
-## ⭐ Support the Development
-
-If you find this kernel useful, consider showing your support:
-
-*   **Star the Repository:** Give this project a ⭐ on GitHub to help others discover it
-*   **Share:** Spread the word in your community, forums, or with fellow Poco X6 Pro users
-*   **Report Issues:** Found a bug? Open an issue with detailed logs to help improve stability
-*   **Contribute:** Pull requests, suggestions, and constructive feedback are always welcome
-
-Your support helps keep this project maintained and improved for everyone.
-
-## 🧩 Recommended Modules for Poco X6 Pro
-
-Enhance your device with these companion modules:
-
-| Module | Description |
-|--------|-------------|
-| [**GPU Unlocker** (HyperOS Only)](https://github.com/ahmed-alnassif/GPU-Unlocker) | Unlock the Mali-G615 MC6 GPU from 701 MHz to full 1.4 GHz on POCO X6 Pro HyperOS. |
-| [**Thermal Manager**  (AOSP Only)](https://github.com/ahmed-alnassif/Thermal-Manager) | Fixes the thermal mode/profile reset issue on Poco X6 Pro. Monitor and force-persist your chosen mode: **Balanced** ⚖️, **Battery Saver** 🔋, **Performance** ⚡, or **Gaming** 🎮. Includes **WebUI** for instant switching, auto battery saver when screen off, and mode persistence after reboot. |
-| [**DSP AudioFix**  (AOSP Only)](https://github.com/ahmed-alnassif/DSP-AudioFix) | Simple fix for distorted audio on Poco X6 Pro and similar Xiaomi/MediaTek devices with Awinic smart amps. |
-
->[!TIP]
->Both modules are designed specifically for Poco X6 Pro hardware quirks and work seamlessly with any GKID kernel variant.
+*   **⚡ Performance & efficiency:** 300Hz timer, MGLRU, ARM-optimized memory routines, zRAM with LZ4
+    + writeback, schedutil/ondemand governors, mq-deadline for UFS 4.0, F2FS and ext4 tuning
+*   **🌐 Network:** TCP BBRv3 + Westwood+, FQ, ECN, forced `TCP_NODELAY`, IPv6 NAT + IP Set
+*   **🔋 Battery:** 1s freeze timeout, 500ms wakelock cap, minimized alarm/s2idle wakeups
+*   **🧠 Scheduler & CPU:** tuned idle-core scan order, cache-friendly struct alignment
+*   **🔒 Baseband Guard (BBG):** LSM blocking unauthorized writes to critical partitions
+*   **🐳 DroidSpaces** configs and the SysV IPC KABI patch
+*   **🔥 LTO:** ThinLTO / FullLTO / none, selectable at dispatch
 
 ## 📱 Compatibility
-*   **Primary Device:** Poco X6 Pro (codenamed `duchamp`)
 
-*   **GKI Requirement:** Flashes on any device with a **6.1.xx-android14** kernel.  
-    *(Note: Only tested on the Poco X6 Pro. Please exercise caution on other devices.)*
+*   **Primary device:** Poco X6 Pro (codename `duchamp`)
+*   **GKI requirement:** flashes on any device with a **6.1.xx-android14** kernel
+    *(only tested on the Poco X6 Pro — exercise caution elsewhere)*
 
-## ⬇️ Downloads
-Find the latest builds for all variants in the [Releases](https://github.com/ahmed-alnassif/GKI-Duchamp/releases) section.
+## ⬇️ Downloads & flashing
 
-## 🐧 Kernel Source
-**GitHub:** [ahmed-alnassif/GKI-Duchamp-6.1](https://github.com/ahmed-alnassif/GKI-Duchamp-6.1)
+Grab the latest build from [Releases](https://github.com/Leb-Sun/GKI-Duchamp/releases). Each release
+contains:
+
+- the **kernel** AnyKernel3 zip (`…-KernelSU-Next+NTSync-Droidspaces.zip`), and
+- **`ntsync-policy.zip`** — required for NTSync here, see above.
+
+**Flashing:**
+1. Flash the **kernel** zip from recovery.
+2. Install **`ntsync-policy.zip`** as a module from your KernelSU-Next manager.
+3. Reboot. `/dev/ntsync` should come up as `u:object_r:ntsync_device:s0`, mode `0666`, with
+   `getenforce` still reporting **Enforcing**.
+
+> **Release model:** every CI build is published as a **pre-release** — unblessed by design. A build is
+> only promoted to *Latest* after I've flashed it and confirmed it works on my device. If you want the
+> verified build, take **Latest**; pre-releases are candidates.
+
+## 🙏 Credits & licenses
+
+- **Upstream** — [ahmed-alnassif/GKI-Duchamp](https://github.com/ahmed-alnassif/GKI-Duchamp): the
+  performance work, Baseband Guard, LTO support, DroidSpaces integration and the entire build harness.
+  Kernel source: [ahmed-alnassif/GKI-Duchamp-6.1](https://github.com/ahmed-alnassif/GKI-Duchamp-6.1).
+- **NTSync** — the driver is the upstream Linux kernel driver by **Elizabeth Figura** (CodeWeavers),
+  merged into mainline; GPL-2.0, SPDX headers preserved.
+- **DroidSpaces** — the SysV IPC KABI-padding patch is by
+  **[nullptr-t-oss](https://github.com/nullptr-t-oss)**; the config set is by **ravindu644**.
+- **Root** — [KernelSU-Next](https://github.com/KernelSU-Next/KernelSU-Next).
+- The `ntsync-policy` module uses the **Magisk** module installer template (topjohnwu, GPL-3.0).
+
+This repository (build scripts + patch set) is GPL-3.0 (see [`LICENSE`](/LICENSE)); the kernel sources
+it builds remain GPL-2.0 per their own SPDX headers.
