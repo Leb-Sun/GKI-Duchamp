@@ -227,6 +227,15 @@ jobs:
           path: release-artifacts
           merge-multiple: true
 
+      - name: Package ntsync-policy module
+        run: |
+          # ntsync needs two pieces here: the kernel driver, and this companion
+          # SELinux module that labels /dev/ntsync as ntsync_device and restores
+          # mode 0666 so apps can open it. Ship it alongside every release — this
+          # build does the labelling from userspace, so without the module the
+          # node stays unreachable to Wine.
+          (cd ntsync-policy && zip -r "$GITHUB_WORKSPACE/release-artifacts/ntsync-policy.zip" . -x '.git*')
+
       - name: Generate Checksums
         run: |
           cd release-artifacts

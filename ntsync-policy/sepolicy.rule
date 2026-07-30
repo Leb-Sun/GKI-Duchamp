@@ -1,0 +1,5 @@
+type ntsync_device dev_type
+allow untrusted_app ntsync_device chr_file { open read write ioctl getattr map }
+allow untrusted_app_all ntsync_device chr_file { open read write ioctl getattr map }
+allow isolated_app ntsync_device chr_file { open read write ioctl getattr map }
+allow ephemeral_app ntsync_device chr_file { open read write ioctl getattr map }

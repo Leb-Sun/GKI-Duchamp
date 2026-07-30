@@ -117,8 +117,16 @@ log "Applying BBRv3 patch"
 patch -p1 --fuzz=3 < $KERNEL_PATCHES/bbrv3/bbrv3.patch
 
 log "Applying NTSync patches..."
-curl -LSs "https://github.com/WildKernels/kernel_patches/raw/main/common/ntsync/ntsync_base.patch" | patch -p1 --fuzz=3
-curl -LSs "https://github.com/WildKernels/kernel_patches/raw/main/common/ntsync/ntsync_compat_android14-6.1.patch" | patch -p1 --fuzz=3
+# Applied from the tree rather than curl'd from WildKernels HEAD, for two reasons:
+# the driver here is the one merged in mainline Linux, unmodified, and vendoring
+# the patch keeps the build reproducible instead of tracking a moving file.
+# The WildKernels copy additionally labels /dev/ntsync as gpu_device and sets mode
+# 0666 from inside the kernel; this build does that from userspace instead, via the
+# ntsync-policy module (which declares its own ntsync_device type). If you ever
+# swap these lines back to curl, drop that module too — otherwise both mechanisms
+# target the same node.
+patch -p1 --fuzz=3 < "$KERNEL_PATCHES/ntsync/ntsync_base.patch"
+patch -p1 --fuzz=3 < "$KERNEL_PATCHES/ntsync/ntsync_compat_android14-6.1.patch"
 log "NTSync patches applied"
 
 log "BBG included"
@@ -250,6 +258,10 @@ fi
 if [ "$KSU_COMPAT" = "true" ]; then
   VARIANT="Compat+NoLTO+${VARIANT}"
 fi
+
+# This fork always builds ntsync + droidspaces in — tag the zip so it's visible
+# which artifact you're holding.
+VARIANT+="+NTSync-Droidspaces"
 
 # Replace Placeholder in zip name
 AK3_ZIP_NAME=${AK3_ZIP_NAME//KVER/$LINUX_VERSION}

@@ -1,0 +1,2 @@
+# Locally-built ntsync-policy module zip (CI builds the canonical one; see MAINTENANCE.md)
+/ntsync-policy*.zip
