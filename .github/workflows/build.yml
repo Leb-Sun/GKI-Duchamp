@@ -401,7 +401,7 @@ jobs:
               echo "*No changelog available*"
             fi
             echo ""
-            echo "**Full Commit History:** [Browse all commits](https://github.com/pershoot/KernelSU-Next/commits/dev-susfs)"
+            echo "**Full Commit History:** [Browse all commits](https://github.com/KernelSU-Next/KernelSU-Next/commits/v3.3.0)"
             echo ""
             echo "---"
             echo "**Checksums:**"

@@ -75,7 +75,7 @@ SUSFS_PATCH="gki-android14-6.1"
 log "Changelog of repos"
 gh api "repos/ahmed-alnassif/GKI-Duchamp-6.1/commits?sha=${KERNEL_BRANCH}&per_page=10" --jq '.[] | "- [" + .sha[0:7] + "](" + .html_url + ") " + (.commit.message | split("\n")[0])'\
 > "$RELEASE_DIR/android_kernel-6.1_changelog.txt"
-gh api 'repos/pershoot/KernelSU-Next/commits?sha=dev-susfs&per_page=10' --jq '.[] | "- [" + .sha[0:7] + "](" + .html_url + ") " + (.commit.message | split("\n")[0])'\
+gh api 'repos/KernelSU-Next/KernelSU-Next/commits?sha=v3.3.0&per_page=10' --jq '.[] | "- [" + .sha[0:7] + "](" + .html_url + ") " + (.commit.message | split("\n")[0])'\
 > "$RELEASE_DIR/ksun_changelog.txt"
 
 # Download Clang
@@ -235,7 +235,12 @@ if [ "$KSU" = "KSUN" ]; then
   if susfs_included; then
     install_ksu "pershoot/KernelSU-Next" "dev-susfs"
   else
-    install_ksu "KernelSU-Next/KernelSU-Next" "dev"
+    # Pinned, not "dev". Tracking dev HEAD once swept in the uapi bump
+    # (KernelSU-Next#3455) that the stable manager can't talk to, and root grant
+    # broke with "failed to update app profile". Kernel KSU version and manager
+    # version must move together — bumping this line means installing the
+    # matching manager APK (v3.3.0 = versionCode 33214).
+    install_ksu "KernelSU-Next/KernelSU-Next" "v3.3.0"
   fi
 
   if susfs_included; then
