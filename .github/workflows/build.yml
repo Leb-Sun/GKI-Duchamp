@@ -43,8 +43,13 @@ on:
           - "yes"
 
       LTO:
-        description: enable LTO optimization
-        default: "thinLTO"
+        # Default flipped from upstream's "thinLTO": thinLTO bootloops this
+        # device. Proven by v26.07.30-r11 vs r12, which differed in nothing else
+        # (r11 built on a cold cache, so the LTO mode was the only variable).
+        # Left selectable so it can be retested — the cause was never root-caused,
+        # and a future KernelSU-Next bump may well change the answer.
+        description: "LTO mode — keep noneLTO; thinLTO bootloops this device"
+        default: "noneLTO"
         type: choice
         options:
           - "noneLTO"
